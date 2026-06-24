@@ -44,6 +44,15 @@ export function useData() {
     return () => { cancelled = true; };
   }, []);
 
+  const ensureUser = useCallback(async () => {
+    let { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      const { data } = await supabase.auth.signInAnonymously();
+      user = data.user;
+    }
+    return user;
+  }, [supabase]);
+
   const saveEntry = useCallback(
     async (entry: Partial<Entry>) => {
       const crosses =
@@ -54,14 +63,14 @@ export function useData() {
       if (entry.id) {
         await supabase.from("entries").update(payload).eq("id", entry.id);
       } else {
-        const { data: u } = await supabase.auth.getUser();
+        const user = await ensureUser();
         await supabase
           .from("entries")
-          .insert({ ...payload, user_id: u.user?.id });
+          .insert({ ...payload, user_id: user?.id });
       }
       await load();
     },
-    [supabase, load]
+    [supabase, load, ensureUser]
   );
 
   const deleteEntry = useCallback(
@@ -76,13 +85,13 @@ export function useData() {
     async (patch: Partial<Settings>) => {
       const next = { ...settings, ...patch };
       setSettings(next);
-      const { data: u } = await supabase.auth.getUser();
+      const user = await ensureUser();
       await supabase
         .from("settings")
         .update(patch)
-        .eq("user_id", u.user?.id);
+        .eq("user_id", user?.id);
     },
-    [supabase, settings]
+    [supabase, settings, ensureUser]
   );
 
   return {
