@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #1f3a8a;
+  --ink-600: #2944a3;
+  --ink-100: #e7ebfa;
+  --paper: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #fbfaf7;
+  --line: #e8e4db;
+  --text: #1a1d24;
+  --text-soft: #5b6170;
+  --text-faint: #9aa0ad;
+  --sage: #2f7d6b;
+  --sage-100: #e3f1ec;
+  --clay: #b9612f;
+  --clay-100: #f6e7dd;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.figure {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+.cell-worked { background: var(--ink); color: #fff; }
+.cell-planned {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px dashed var(--ink-600);
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, var(--ink-100) 5px, var(--ink-100) 6px);
+}
+.cell-holiday-dot { background: var(--clay); }
