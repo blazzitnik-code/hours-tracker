@@ -11,7 +11,7 @@ import SettingsScreen from "./SettingsScreen";
 type Tab = "today" | "calendar" | "earnings" | "settings";
 
 export default function AppShell() {
-  const { entries, settings, loading, saveEntry, deleteEntry, saveSettings } = useData();
+  const { entries, settings, loading, error, saveEntry, deleteEntry, saveSettings } = useData();
   const [tab, setTab] = useState<Tab>("today");
   const locale = settings.locale as Locale;
   const L = (k: Parameters<typeof tr>[0]) => tr(k, locale);
@@ -25,6 +25,12 @@ export default function AppShell() {
   }
 
   return (
+    <>
+    {error && (
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, background: "#b91c1c", color: "#fff", padding: "10px 16px", fontSize: 13, zIndex: 999, fontFamily: "monospace" }}>
+        {error}
+      </div>
+    )}
     <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", position: "relative" }}>
       {tab === "today" && <TodayScreen entries={entries} settings={settings} onSave={saveEntry} onDelete={deleteEntry} />}
       {tab === "calendar" && <CalendarScreen entries={entries} settings={settings} onSave={saveEntry} onDelete={deleteEntry} />}
@@ -38,6 +44,7 @@ export default function AppShell() {
         <TabBtn active={tab === "settings"} onClick={() => setTab("settings")} label={L("settings")} icon={<GearIcon />} />
       </nav>
     </div>
+    </>
   );
 }
 

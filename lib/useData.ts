@@ -21,6 +21,7 @@ export function useData() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data: e } = await supabase
@@ -37,7 +38,14 @@ export function useData() {
     let cancelled = false;
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) await supabase.auth.signInAnonymously();
+      if (!session) {
+        const { error: signInError } = await supabase.auth.signInAnonymously();
+        if (signInError) {
+          setError(`Auth failed: ${signInError.message}`);
+          setLoading(false);
+          return;
+        }
+      }
       if (!cancelled) load();
     }
     init();
@@ -61,13 +69,16 @@ export function useData() {
         rawMinutesCrosses(entry.start_time, entry.end_time);
       const payload = { ...entry, crosses_midnight: crosses };
       if (entry.id) {
-        await supabase.from("entries").update(payload).eq("id", entry.id);
+        const { error: e } = await supabase.from("entries").update(payload).eq("id", entry.id);
+        if (e) { setError(`Update failed: ${e.message}`); return; }
       } else {
         const user = await ensureUser();
-        await supabase
+        const { error: e } = await supabase
           .from("entries")
           .insert({ ...payload, user_id: user?.id });
+        if (e) { setError(`Insert failed: ${e.message} (user: ${user?.id ?? "none"})`); return; }
       }
+      setError(null);
       await load();
     },
     [supabase, load, ensureUser]
@@ -98,6 +109,7 @@ export function useData() {
     entries,
     settings,
     loading,
+    error,
     saveEntry,
     deleteEntry,
     saveSettings,
