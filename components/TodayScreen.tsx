@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Entry, Settings, netBeforeTax, eur, fmtHours, entryHours, rawMinutes } from "@/lib/earnings";
 import { Locale, tr } from "@/lib/i18n";
-import { localISO, weekRange } from "@/lib/dates";
+import { localISO, weekRange, monthRange } from "@/lib/dates";
 import EntryEditor from "./EntryEditor";
 
 interface Props {
@@ -34,6 +34,13 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
   });
   const weekNet = netBeforeTax(weekEntries, settings);
 
+  const { start: ms, end: me } = monthRange(new Date());
+  const monthEntries = entries.filter((e) => {
+    const d = new Date(e.work_date + "T00:00:00");
+    return d >= ms && d <= me;
+  });
+  const monthNet = netBeforeTax(monthEntries, settings);
+
   function startNow() {
     onSave({ work_date: today, start_time: nowTime(), end_time: null, status: "worked" });
   }
@@ -43,11 +50,18 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
 
   return (
     <div style={{ padding: "20px 18px 100px" }}>
-      {/* Hero: this week net */}
-      <div style={hero}>
-        <span style={heroLabel}>{L("netEarnings")} · {L("thisWeek")}</span>
-        <span className="figure" style={heroFigure}>{eur(weekNet, locale)}</span>
-        <span style={heroSub}>{fmtHours(weekEntries.filter(e=>e.status==="worked"&&e.end_time).reduce((s,e)=>s+entryHours(e,settings),0))} · {L("netBeforeTax").toLowerCase()}</span>
+      {/* Hero: this week + this month net */}
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ ...hero, flex: 1 }}>
+          <span style={heroLabel}>{L("netEarnings")} · {L("thisWeek")}</span>
+          <span className="figure" style={heroFigure}>{eur(weekNet, locale)}</span>
+          <span style={heroSub}>{fmtHours(weekEntries.filter(e=>e.status==="worked"&&e.end_time).reduce((s,e)=>s+entryHours(e,settings),0))} · {L("netBeforeTax").toLowerCase()}</span>
+        </div>
+        <div style={{ ...hero, flex: 1 }}>
+          <span style={heroLabel}>{L("netEarnings")} · {L("thisMonth")}</span>
+          <span className="figure" style={heroFigure}>{eur(monthNet, locale)}</span>
+          <span style={heroSub}>{fmtHours(monthEntries.filter(e=>e.status==="worked"&&e.end_time).reduce((s,e)=>s+entryHours(e,settings),0))} · {L("netBeforeTax").toLowerCase()}</span>
+        </div>
       </div>
 
       {/* Clock */}
