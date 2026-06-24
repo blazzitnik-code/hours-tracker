@@ -34,8 +34,15 @@ export function useData() {
   }, [supabase]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) await supabase.auth.signInAnonymously();
+      if (!cancelled) load();
+    }
+    init();
+    return () => { cancelled = true; };
+  }, []);
 
   const saveEntry = useCallback(
     async (entry: Partial<Entry>) => {
