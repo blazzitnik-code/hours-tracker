@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Entry, Settings, entryHours } from "@/lib/earnings";
+import { Company, Entry, Settings, entryHours } from "@/lib/earnings";
 import { Locale, tr, siHolidays, t } from "@/lib/i18n";
 import { localISO, monthGrid, addMonths, isSameMonth, isSameDay, format } from "@/lib/dates";
 import EntryEditor from "./EntryEditor";
@@ -10,11 +10,12 @@ import { EntryRow } from "./TodayScreen";
 interface Props {
   entries: Entry[];
   settings: Settings;
+  companies: Company[];
   onSave: (e: Partial<Entry>) => void;
   onDelete: (id: string) => void;
 }
 
-export default function CalendarScreen({ entries, settings, onSave, onDelete }: Props) {
+export default function CalendarScreen({ entries, settings, companies, onSave, onDelete }: Props) {
   const locale = settings.locale as Locale;
   const L = (k: Parameters<typeof tr>[0]) => tr(k, locale);
   const [ref, setRef] = useState(new Date());
@@ -126,7 +127,7 @@ export default function CalendarScreen({ entries, settings, onSave, onDelete }: 
         ) : (
           selectedEntries.map((e) => (
             <div key={e.id}>
-              <EntryRow entry={e} settings={settings} locale={locale} onClick={() => setEditing(e)} />
+              <EntryRow entry={e} settings={settings} companies={companies} locale={locale} onClick={() => setEditing(e)} />
               {e.status === "planned" && (
                 <button onClick={() => onSave({ ...e, status: "worked" })} style={confirmBtn}>
                   ✓ {L("confirmWorked")}
@@ -141,6 +142,8 @@ export default function CalendarScreen({ entries, settings, onSave, onDelete }: 
         <EntryEditor
           initial={editing}
           defaultDate={selected}
+          defaultCompanyId={entries.find((e) => e.company_id)?.company_id ?? null}
+          companies={companies}
           locale={locale}
           onSave={onSave}
           onDelete={onDelete}

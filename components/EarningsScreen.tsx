@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Entry, Settings, computeBreakdown, entryHours, eur, fmtHours } from "@/lib/earnings";
+import { Company, Entry, Settings, computeBreakdown, entryHours, eur, fmtHours } from "@/lib/earnings";
 import { Locale, tr } from "@/lib/i18n";
 import { weekRange, monthRange, addMonths, format, localISO } from "@/lib/dates";
 
 interface Props {
   entries: Entry[];
   settings: Settings;
+  companies: Company[];
 }
 
-export default function EarningsScreen({ entries, settings }: Props) {
+export default function EarningsScreen({ entries, settings, companies }: Props) {
   const locale = settings.locale as Locale;
   const L = (k: Parameters<typeof tr>[0]) => tr(k, locale);
   const [ref, setRef] = useState(new Date());
@@ -24,15 +25,15 @@ export default function EarningsScreen({ entries, settings }: Props) {
 
   const { start: ms, end: me } = monthRange(ref);
   const monthEntries = inRange(ms, me);
-  const b = computeBreakdown(monthEntries, settings);
+  const b = computeBreakdown(monthEntries, settings, companies);
 
   const { start: ws, end: we } = weekRange(new Date());
-  const weekB = computeBreakdown(inRange(ws, we), settings);
+  const weekB = computeBreakdown(inRange(ws, we), settings, companies);
 
   // annual allowance progress (gross earned this calendar year)
   const yearStart = new Date(ref.getFullYear(), 0, 1);
   const yearEnd = new Date(ref.getFullYear(), 11, 31);
-  const yearGross = computeBreakdown(inRange(yearStart, yearEnd), settings).gross;
+  const yearGross = computeBreakdown(inRange(yearStart, yearEnd), settings, companies).gross;
   const allowancePct = Math.min(100, (yearGross / settings.annual_allowance) * 100);
   const nearLimit = allowancePct >= 85 && allowancePct < 100;
   const overLimit = allowancePct >= 100;

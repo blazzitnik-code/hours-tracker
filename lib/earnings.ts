@@ -1,17 +1,24 @@
-// Core domain logic: hours, rounding, and the Slovenian student-work
-// gross→net→akontacija calculation. Mirrors the monthly breakdown card.
-
 export type EntryStatus = "worked" | "planned";
+
+export interface Company {
+  id: string;
+  user_id: string;
+  name: string;
+  gross_rate: number | null; // null = not hourly-based (e.g. Wolt deliveries)
+}
 
 export interface Entry {
   id: string;
   user_id: string;
-  work_date: string; // YYYY-MM-DD (date of START time)
-  start_time: string; // HH:MM or HH:MM:SS
-  end_time: string | null; // null while running
+  work_date: string;
+  start_time: string | null; // null for manual-amount entries
+  end_time: string | null;
   crosses_midnight: boolean;
   label: string | null;
   status: EntryStatus;
+  company_id: string | null;
+  gross_override: number | null;
+  net_override: number | null;
 }
 
 export interface Settings {
@@ -27,22 +34,18 @@ export interface Settings {
 
 // --- time helpers -------------------------------------------------
 
-// minutes since midnight from "HH:MM" or "HH:MM:SS"
 function toMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }
 
-// Raw worked minutes for one entry. Handles overnight: if end < start,
-// the shift crossed midnight, so add a full day.
-export function rawMinutes(start: string, end: string | null): number {
-  if (!end) return 0; // running session contributes nothing until ended
+export function rawMinutes(start: string | null, end: string | null): number {
+  if (!start || !end) return 0;
   let diff = toMinutes(end) - toMinutes(start);
-  if (diff < 0) diff += 24 * 60; // crossed midnight
+  if (diff < 0) diff += 24 * 60;
   return diff;
 }
 
-// Apply the rounding mode to a minute count.
 export function applyRounding(
   minutes: number,
   mode: Settings["rounding"]
@@ -52,7 +55,6 @@ export function applyRounding(
   return Math.round(minutes / step) * step;
 }
 
-// Worked hours (decimal) for an entry, after rounding.
 export function entryHours(entry: Entry, settings: Settings): number {
   const mins = applyRounding(
     rawMinutes(entry.start_time, entry.end_time),
@@ -68,22 +70,46 @@ export interface NetBreakdown {
   gross: number;
   piz: number;
   pdo: number;
-  netBeforeTax: number; // "Neto pred dohodnino" — used for day/week
-  akontacija: number; // 0 if gross <= threshold
-  netAfterTax: number; // "Neto po akontaciji" — month worst-case take-home
+  netBeforeTax: number;
+  akontacija: number;
+  netAfterTax: number;
   akontacijaApplies: boolean;
 }
 
-// Given a set of WORKED entries, compute the full breakdown.
-// Planned entries are excluded from money everywhere.
+function resolveEntryGross(
+  entry: Entry,
+  settings: Settings,
+  companyMap: Map<string, Company>
+): number {
+  if (entry.gross_override != null) return entry.gross_override;
+  if (entry.net_override != null) {
+    // back-calculate: net = gross × (1 − piz% − pdo%)
+    const factor = 1 - settings.piz_pct / 100 - settings.pdo_pct / 100;
+    return entry.net_override / factor;
+  }
+  const rate =
+    (entry.company_id ? companyMap.get(entry.company_id)?.gross_rate : null) ??
+    settings.gross_rate;
+  return entryHours(entry, settings) * rate;
+}
+
 export function computeBreakdown(
   entries: Entry[],
-  settings: Settings
+  settings: Settings,
+  companies: Company[] = []
 ): NetBreakdown {
-  const worked = entries.filter((e) => e.status === "worked" && e.end_time);
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const worked = entries.filter(
+    (e) =>
+      e.status === "worked" &&
+      (e.end_time || e.gross_override != null || e.net_override != null)
+  );
 
   const hours = worked.reduce((sum, e) => sum + entryHours(e, settings), 0);
-  const gross = hours * settings.gross_rate;
+  const gross = worked.reduce(
+    (sum, e) => sum + resolveEntryGross(e, settings, companyMap),
+    0
+  );
 
   const piz = gross * (settings.piz_pct / 100);
   const pdo = gross * (settings.pdo_pct / 100);
@@ -95,21 +121,15 @@ export function computeBreakdown(
     : 0;
   const netAfterTax = netBeforeTax - akontacija;
 
-  return {
-    hours,
-    gross,
-    piz,
-    pdo,
-    netBeforeTax,
-    akontacija,
-    netAfterTax,
-    akontacijaApplies,
-  };
+  return { hours, gross, piz, pdo, netBeforeTax, akontacija, netAfterTax, akontacijaApplies };
 }
 
-// Net shown on day/week views = net before income-tax advance.
-export function netBeforeTax(entries: Entry[], settings: Settings): number {
-  return computeBreakdown(entries, settings).netBeforeTax;
+export function netBeforeTax(
+  entries: Entry[],
+  settings: Settings,
+  companies: Company[] = []
+): number {
+  return computeBreakdown(entries, settings, companies).netBeforeTax;
 }
 
 // --- formatting ---------------------------------------------------

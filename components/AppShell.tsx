@@ -11,7 +11,7 @@ import SettingsScreen from "./SettingsScreen";
 type Tab = "today" | "calendar" | "earnings" | "settings";
 
 export default function AppShell() {
-  const { entries, settings, loading, error, saveEntry, deleteEntry, saveSettings } = useData();
+  const { entries, settings, companies, loading, error, saveEntry, deleteEntry, saveSettings, saveCompany, deleteCompany } = useData();
   const [tab, setTab] = useState<Tab>("today");
   const locale = settings.locale as Locale;
   const L = (k: Parameters<typeof tr>[0]) => tr(k, locale);
@@ -32,10 +32,10 @@ export default function AppShell() {
       </div>
     )}
     <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", position: "relative" }}>
-      {tab === "today" && <TodayScreen entries={entries} settings={settings} onSave={saveEntry} onDelete={deleteEntry} />}
-      {tab === "calendar" && <CalendarScreen entries={entries} settings={settings} onSave={saveEntry} onDelete={deleteEntry} />}
-      {tab === "earnings" && <EarningsScreen entries={entries} settings={settings} />}
-      {tab === "settings" && <SettingsScreen entries={entries} settings={settings} onSave={saveSettings} />}
+      {tab === "today" && <TodayScreen entries={entries} settings={settings} companies={companies} onSave={saveEntry} onDelete={deleteEntry} />}
+      {tab === "calendar" && <CalendarScreen entries={entries} settings={settings} companies={companies} onSave={saveEntry} onDelete={deleteEntry} />}
+      {tab === "earnings" && <EarningsScreen entries={entries} settings={settings} companies={companies} />}
+      {tab === "settings" && <SettingsScreen entries={entries} settings={settings} companies={companies} onSave={saveSettings} onSaveCompany={saveCompany} onDeleteCompany={deleteCompany} />}
 
       <nav style={navBar}>
         <TabBtn active={tab === "today"} onClick={() => setTab("today")} label={L("today")} icon={<ClockIcon />} />

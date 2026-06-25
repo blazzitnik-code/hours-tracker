@@ -77,6 +77,18 @@ export const t = {
   exportCsv: { en: "Export CSV", sl: "Izvozi CSV" },
   exportPdf: { en: "Export PDF", sl: "Izvozi PDF" },
   signOut: { en: "Sign out", sl: "Odjava" },
+  // companies
+  company: { en: "Company", sl: "Podjetje" },
+  companies: { en: "Companies", sl: "Podjetja" },
+  addCompany: { en: "Add company", sl: "Dodaj podjetje" },
+  companyName: { en: "Company name", sl: "Ime podjetja" },
+  rateOptional: { en: "Rate €/h (leave empty if not hourly)", sl: "Urna postavka €/h (pusti prazno, če ni urno)" },
+  noCompany: { en: "No company", sl: "Brez podjetja" },
+  // entry mode
+  byHours: { en: "By hours", sl: "Po urah" },
+  manualAmount: { en: "Manual amount", sl: "Ročni znesek" },
+  grossAmount: { en: "Gross amount (€)", sl: "Bruto znesek (€)" },
+  netAmount: { en: "Net amount (€)", sl: "Neto znesek (€)" },
   // auth
   signIn: { en: "Sign in", sl: "Prijava" },
   emailLabel: { en: "Email", sl: "E-pošta" },

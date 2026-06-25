@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Entry, Settings, netBeforeTax, eur, fmtHours, entryHours, rawMinutes } from "@/lib/earnings";
+import { Company, Entry, Settings, netBeforeTax, eur, fmtHours, entryHours, rawMinutes } from "@/lib/earnings";
 import { Locale, tr } from "@/lib/i18n";
 import { localISO, weekRange, monthRange } from "@/lib/dates";
 import EntryEditor from "./EntryEditor";
@@ -9,11 +9,12 @@ import EntryEditor from "./EntryEditor";
 interface Props {
   entries: Entry[];
   settings: Settings;
+  companies: Company[];
   onSave: (e: Partial<Entry>) => void;
   onDelete: (id: string) => void;
 }
 
-export default function TodayScreen({ entries, settings, onSave, onDelete }: Props) {
+export default function TodayScreen({ entries, settings, companies, onSave, onDelete }: Props) {
   const locale = settings.locale as Locale;
   const L = (k: Parameters<typeof tr>[0]) => tr(k, locale);
   const today = localISO(new Date());
@@ -22,7 +23,6 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
   const todays = entries.filter((e) => e.work_date === today);
   const running = todays.find((e) => e.status === "worked" && !e.end_time);
 
-  // forgot-to-stop guard: session open more than 14h
   const longRunning =
     running &&
     rawMinutes(running.start_time, nowTime()) > 14 * 60;
@@ -32,14 +32,17 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
     const d = new Date(e.work_date + "T00:00:00");
     return d >= ws && d <= we;
   });
-  const weekNet = netBeforeTax(weekEntries, settings);
+  const weekNet = netBeforeTax(weekEntries, settings, companies);
 
   const { start: ms, end: me } = monthRange(new Date());
   const monthEntries = entries.filter((e) => {
     const d = new Date(e.work_date + "T00:00:00");
     return d >= ms && d <= me;
   });
-  const monthNet = netBeforeTax(monthEntries, settings);
+  const monthNet = netBeforeTax(monthEntries, settings, companies);
+
+  // last used company from most recent entry that has one
+  const lastCompanyId = entries.find((e) => e.company_id)?.company_id ?? null;
 
   function startNow() {
     onSave({ work_date: today, start_time: nowTime(), end_time: null, status: "worked" });
@@ -68,7 +71,7 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
       <div style={{ marginTop: 20 }}>
         {running ? (
           <button onClick={endNow} style={{ ...clockBtn, background: "var(--clay)" }}>
-            <PulseDot /> {L("endNow")} · {L("running")} {running.start_time.slice(0, 5)}
+            <PulseDot /> {L("endNow")} · {L("running")} {running.start_time?.slice(0, 5)}
           </button>
         ) : (
           <button onClick={startNow} style={clockBtn}>
@@ -82,19 +85,18 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
 
       {longRunning && (
         <div style={guard}>
-          {L("stillWorking")} — {L("running").toLowerCase()} {running!.start_time.slice(0,5)}.
+          {L("stillWorking")} — {L("running").toLowerCase()} {running!.start_time?.slice(0,5)}.
           <button onClick={() => setEditing(running)} style={guardBtn}>{L("editEntry")}</button>
         </div>
       )}
 
-      {/* Today's entries */}
       <h2 style={sectionTitle}>{L("today")}</h2>
       {todays.length === 0 ? (
         <p style={empty}>{L("noEntriesToday")}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {todays.map((e) => (
-            <EntryRow key={e.id} entry={e} settings={settings} locale={locale} onClick={() => setEditing(e)} />
+            <EntryRow key={e.id} entry={e} settings={settings} companies={companies} locale={locale} onClick={() => setEditing(e)} />
           ))}
         </div>
       )}
@@ -103,6 +105,8 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
         <EntryEditor
           initial={editing}
           defaultDate={today}
+          defaultCompanyId={lastCompanyId}
+          companies={companies}
           locale={locale}
           onSave={onSave}
           onDelete={onDelete}
@@ -113,20 +117,25 @@ export default function TodayScreen({ entries, settings, onSave, onDelete }: Pro
   );
 }
 
-export function EntryRow({ entry, settings, locale, onClick }: { entry: Entry; settings: Settings; locale: Locale; onClick: () => void }) {
+export function EntryRow({ entry, settings, companies = [], locale, onClick }: { entry: Entry; settings: Settings; companies?: Company[]; locale: Locale; onClick: () => void }) {
   const L = (k: Parameters<typeof tr>[0]) => tr(k, locale);
   const isPlanned = entry.status === "planned";
   const isRunning = entry.status === "worked" && !entry.end_time;
+  const isManual = entry.gross_override != null || entry.net_override != null;
   const h = entryHours(entry, settings);
+  const net = netBeforeTax([entry], settings, companies);
+
   return (
     <button onClick={onClick} style={{ ...rowCard, ...(isPlanned ? rowPlanned : {}) }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
         <span style={{ fontWeight: 600, fontSize: 15 }}>
-          {entry.start_time.slice(0, 5)}{entry.end_time ? `–${entry.end_time.slice(0, 5)}` : ""}
+          {entry.start_time
+            ? `${entry.start_time.slice(0, 5)}${entry.end_time ? `–${entry.end_time.slice(0, 5)}` : ""}`
+            : "●"}
           {entry.crosses_midnight ? <sup style={{ color: "var(--ink)" }}> +1</sup> : null}
         </span>
         <span style={{ fontSize: 13, color: "var(--text-soft)" }}>
-          {entry.label || (isPlanned ? L("planned") : isRunning ? L("running") : L("worked"))}
+          {entry.label || (isManual ? (locale === "sl" ? "ročni vnos" : "manual") : isPlanned ? L("planned") : isRunning ? L("running") : L("worked"))}
         </span>
       </div>
       <div style={{ textAlign: "right" }}>
@@ -136,8 +145,8 @@ export function EntryRow({ entry, settings, locale, onClick }: { entry: Entry; s
           <span style={{ color: "var(--text-faint)", fontSize: 14 }}>—</span>
         ) : (
           <>
-            <span className="figure" style={{ fontSize: 15 }}>{fmtHours(h)}</span>
-            <span style={{ display: "block", fontSize: 13, color: "var(--text-soft)" }}>{eur(netBeforeTax([entry], settings), locale)}</span>
+            {!isManual && <span className="figure" style={{ fontSize: 15 }}>{fmtHours(h)}</span>}
+            <span style={{ display: "block", fontSize: 13, color: "var(--text-soft)" }}>{eur(net, locale)}</span>
           </>
         )}
       </div>
