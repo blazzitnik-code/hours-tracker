@@ -13,7 +13,7 @@ export function exportCsv(entries: Entry[], settings: Settings, locale: Locale) 
     const b = computeBreakdown([e], settings);
     rows.push([
       e.work_date,
-      e.start_time.slice(0, 5),
+      (e.start_time || "").slice(0, 5),
       (e.end_time || "").slice(0, 5),
       e.crosses_midnight ? "yes" : "",
       e.label || "",
@@ -38,7 +38,7 @@ export function exportPdf(entries: Entry[], settings: Settings, locale: Locale, 
       const h = entryHours(e, settings);
       return `<tr>
         <td>${e.work_date}</td>
-        <td>${e.start_time.slice(0, 5)}–${(e.end_time || "").slice(0, 5)}${e.crosses_midnight ? " ⁺" : ""}</td>
+        <td>${(e.start_time || "").slice(0, 5)}–${(e.end_time || "").slice(0, 5)}${e.crosses_midnight ? " ⁺" : ""}</td>
         <td>${e.label || ""}</td>
         <td style="text-align:right">${fmtHours(h)}</td>
         <td style="text-align:right">${eur(h * settings.gross_rate, locale)}</td>
