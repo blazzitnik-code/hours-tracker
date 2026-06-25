@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Company, Entry, Settings, computeBreakdown, entryHours, eur, fmtHours } from "@/lib/earnings";
+import { companyColor } from "@/lib/colors";
 import { Locale, tr } from "@/lib/i18n";
 import { weekRange, monthRange, addMonths, format, localISO } from "@/lib/dates";
 
@@ -29,6 +30,16 @@ export default function EarningsScreen({ entries, settings, companies }: Props) 
 
   const { start: ws, end: we } = weekRange(new Date());
   const weekB = computeBreakdown(inRange(ws, we), settings, companies);
+
+  // per-company breakdown for the month
+  const perCompany = companies
+    .map((c, i) => ({
+      company: c,
+      color: companyColor(i),
+      b: computeBreakdown(monthEntries.filter((e) => e.company_id === c.id), settings, companies),
+    }))
+    .filter(({ b }) => b.gross > 0);
+  const unassignedB = computeBreakdown(monthEntries.filter((e) => !e.company_id), settings, companies);
 
   // annual allowance progress (gross earned this calendar year)
   const yearStart = new Date(ref.getFullYear(), 0, 1);
@@ -91,6 +102,37 @@ export default function EarningsScreen({ entries, settings, companies }: Props) 
           </div>
         )}
       </div>
+
+      {/* Per-company breakdown */}
+      {(perCompany.length > 0 || unassignedB.gross > 0) && (
+        <div style={{ marginTop: 16, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--radius)", overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px 4px", fontSize: 11, fontWeight: 700, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {locale === "sl" ? "Po podjetjih" : "By company"}
+          </div>
+          {perCompany.map(({ company, color, b: cb }) => (
+            <div key={company.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", borderTop: "1px solid var(--line)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: color, display: "inline-block", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{company.name}</span>
+                <span style={{ fontSize: 12, color: "var(--text-soft)" }}>
+                  {cb.hours > 0 ? fmtHours(cb.hours) : locale === "sl" ? "ročno" : "manual"}
+                </span>
+              </div>
+              <span className="figure" style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>{eur(cb.netBeforeTax, locale)}</span>
+            </div>
+          ))}
+          {unassignedB.gross > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", borderTop: "1px solid var(--line)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: "var(--ink)", display: "inline-block", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-soft)" }}>{locale === "sl" ? "Brez podjetja" : "No company"}</span>
+                <span style={{ fontSize: 12, color: "var(--text-soft)" }}>{fmtHours(unassignedB.hours)}</span>
+              </div>
+              <span className="figure" style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>{eur(unassignedB.netBeforeTax, locale)}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Annual allowance */}
       <div style={{ marginTop: 22 }}>

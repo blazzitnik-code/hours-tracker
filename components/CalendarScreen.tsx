@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Company, Entry, Settings, entryHours } from "@/lib/earnings";
+import { companyColor } from "@/lib/colors";
 import { Locale, tr, siHolidays, t } from "@/lib/i18n";
 import { localISO, monthGrid, addMonths, isSameMonth, isSameDay, format } from "@/lib/dates";
 import EntryEditor from "./EntryEditor";
@@ -67,19 +68,22 @@ export default function CalendarScreen({ entries, settings, companies, onSave, o
           const isSel = iso === selected;
           const isToday = isSameDay(day, new Date());
 
-          const cls = hasWorked ? "cell-worked" : hasPlanned ? "cell-planned" : "";
+          // Pick the first company found among worked entries for cell color
+          const firstCompanyId = dayEntries.find((e) => e.status === "worked" && e.company_id)?.company_id ?? null;
+          const companyIdx = firstCompanyId ? companies.findIndex((c) => c.id === firstCompanyId) : -1;
+          const workedBg = companyIdx >= 0 ? companyColor(companyIdx) : "var(--ink)";
 
           return (
             <button
               key={iso}
               onClick={() => setSelected(iso)}
-              className={cls}
+              className={hasPlanned ? "cell-planned" : ""}
               style={{
                 aspectRatio: "1",
                 borderRadius: 10,
                 border: isSel ? "2px solid var(--ink)" : "1px solid transparent",
-                background: cls ? undefined : dim ? "transparent" : "var(--surface)",
-                color: cls ? undefined : dim ? "var(--text-faint)" : "var(--text)",
+                background: hasWorked ? workedBg : hasPlanned ? undefined : dim ? "transparent" : "var(--surface)",
+                color: hasWorked ? "#fff" : hasPlanned ? undefined : dim ? "var(--text-faint)" : "var(--text)",
                 fontSize: 14,
                 fontWeight: isToday ? 700 : 500,
                 position: "relative",
@@ -94,7 +98,7 @@ export default function CalendarScreen({ entries, settings, companies, onSave, o
               {holiday && (
                 <span className="cell-holiday-dot" style={{ position: "absolute", bottom: 5, width: 4, height: 4, borderRadius: 2 }} />
               )}
-              {isToday && !cls && (
+              {isToday && !hasWorked && !hasPlanned && (
                 <span style={{ position: "absolute", bottom: 5, width: 4, height: 4, borderRadius: 2, background: "var(--ink)" }} />
               )}
             </button>
@@ -104,7 +108,16 @@ export default function CalendarScreen({ entries, settings, companies, onSave, o
 
       {/* legend */}
       <div style={legend}>
-        <Legend swatchClass="cell-worked" label={L("worked")} />
+        {companies.length > 0 ? (
+          companies.map((c, i) => (
+            <span key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-soft)" }}>
+              <span style={{ width: 14, height: 14, borderRadius: 4, background: companyColor(i), display: "inline-block", flexShrink: 0 }} />
+              {c.name}
+            </span>
+          ))
+        ) : (
+          <Legend swatchClass="cell-worked" label={L("worked")} />
+        )}
         <Legend swatchClass="cell-planned" label={L("planned")} />
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-soft)" }}>
           <span className="cell-holiday-dot" style={{ width: 7, height: 7, borderRadius: 4 }} /> {locale === "sl" ? "Praznik" : "Holiday"}
